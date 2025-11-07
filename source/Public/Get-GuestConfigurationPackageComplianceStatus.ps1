@@ -96,7 +96,10 @@ function Get-GuestConfigurationPackageComplianceStatus
 
         [Parameter()]
         [Hashtable[]]
-        $Parameter = @()
+        $Parameter = @(),
+
+        [Switch]
+        $ParametersOnly
     )
 
     $invokeParameters = @{
@@ -107,6 +110,13 @@ function Get-GuestConfigurationPackageComplianceStatus
     {
         $invokeParameters['Parameter'] = $Parameter
     }
+
+        
+    if($PSBoundParameters.ContainsKey('ParametersOnly'))
+    {
+        $invokeParameters['ParametersOnly'] = $ParametersOnly
+    }
+
 
     $result = Invoke-GuestConfigurationPackage @invokeParameters
 

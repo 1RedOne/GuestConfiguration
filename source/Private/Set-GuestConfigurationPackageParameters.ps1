@@ -9,7 +9,10 @@ function Set-GuestConfigurationPackageParameters
 
         [Parameter()]
         [Hashtable[]]
-        $Parameter
+        $Parameter,
+
+        [Switch]
+        $ParametersOnly
     )
 
     if ($Parameter.Count -eq 0)
@@ -41,7 +44,13 @@ function Set-GuestConfigurationPackageParameters
             throw "Policy parameter is missing a mandatory property 'ResourcePropertyValue'. Please make sure that configuration resource property value is specified in configuration parameter."
         }
 
-        $resourceId = "[$($parameterInfo.ResourceType)]$($parameterInfo.ResourceId)"
+        if ($null -ne $parameterInfo.ResourcePropertyValue -and $parameterInfo.ResourcePropertyValue.Length -ge 2)
+        {
+            $parameterInfo.ResourcePropertyValue = [string]$parameterInfo.ResourcePropertyValue
+        }
+        else{
+            $resourceId = $parameterInfo.ResourceId
+        }        
 
         $matchingMofInstance = @( $mofInstances | Where-Object {
             ($_.CimInstanceProperties.Name -contains 'ResourceID') -and
@@ -61,6 +70,36 @@ function Set-GuestConfigurationPackageParameters
 
         $mofInstanceParameter = $matchingMofInstance[0].CimInstanceProperties.Item($parameterInfo.ResourcePropertyName)
         $mofInstanceParameter.Value = $parameterInfo.ResourcePropertyValue
+    }
+
+    if ($ParametersOnly)
+    {        
+        $configurationDocumentInstance = $mofInstances | Where-Object { $_.CimClass.CimClassName -eq 'OMI_ConfigurationDocument' }
+                
+        $matchedResourceIds = $Parameter | ForEach-Object { $_.ResourceId }               
+        $unmatchedMofInstances = @()
+
+        foreach ($mofInstance in $mofInstances)
+        {
+            $resourceId = $mofInstance.CimInstanceProperties['ResourceID'].Value
+            if ($resourceId -notin $matchedResourceIds)
+            {
+                $unmatchedMofInstances += $mofInstance
+            }
+        }
+
+        # echo out count of unmatched instances for debugging, subtracts by 1 to exclude OMI_ConfigurationDocument
+        Write-Verbose "Total Mof Instances: $($mofInstances.Count - 1)" 
+        Write-Verbose "Matched ResourceIds Count: $($matchedResourceIds.Count)"
+        Write-Verbose "Unmatched Mof Instances Count: $($unmatchedMofInstances.Count - 1), removing due to running in -ParametersOnly mode."
+
+        # Filter mofInstances to keep only matched ones
+        $mofInstances = @($mofInstances | Where-Object {
+            $resourceId = $_.CimInstanceProperties['ResourceID'].Value
+            $resourceId -in $matchedResourceIds
+        })
+        
+        $mofInstances += $configurationDocumentInstance
     }
 
     Write-MofContent -MofInstances $mofInstances -OutputPath $Path

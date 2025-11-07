@@ -15,7 +15,11 @@ function Invoke-GuestConfigurationPackage
 
         [Parameter()]
         [Switch]
-        $Apply
+        $Apply,
+
+        [Parameter()]
+        [Switch]
+        $ParametersOnly
     )
 
     $os = Get-OSPlatform
@@ -259,7 +263,7 @@ function Invoke-GuestConfigurationPackage
     # Update package configuration parameters
     if ($null -ne $Parameter -and $Parameter.Count -gt 0)
     {
-        Set-GuestConfigurationPackageParameters -Path $mofFilePath -Parameter $Parameter
+        Set-GuestConfigurationPackageParameters -Path $mofFilePath -Parameter $Parameter -ParametersOnly:$ParametersOnly
     }
 
     # Publish the package via GC worker
